@@ -109,27 +109,30 @@ class CravatPostAggregator (BasePostAggregator):
         ref = input_data['base__ref_base']
 
         zygot = input_data['vcfinfo__zygosity']
-        genome = alt + "/" + ref
+        genome = alt + ref
         gen_set = {alt, ref}
         if zygot == 'hom':
-            genome = alt + "/" + alt
+            genome = alt + alt
             gen_set = {alt, alt}
 
         zygot:str = input_data['vcfinfo__zygosity']
         if zygot is None or zygot == "":
             zygot = "het"
 
-        query = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, rsid_conclusion, weight, " \
-                " pmids, population, populations, p_value FROM rsids, studies, " \
-                f" weight WHERE rsids.rsid = '{rsid}' AND weight.rsid = '{rsid}' AND studies.snp= '{rsid}' " \
-                f" AND risk_allele='{alt}' AND zygot ='{zygot}' AND genotype='{gen_set}'; "
+        query_for_pv = f"SELECT p_value FROM weight WHERE rsid = '{rsid}' AND weight.allele='{alt}' AND weight.zygosity='{zygot}'"
+    
+
+        query = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
+        " rsid_conclusion, weight.weight, pmids, population, populations, weight.p_value " \
+        f" FROM rsids, studies, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' " \
+        f" AND weight.allele='{alt}' AND weight.zygosity='{zygot}'"
 
         self.thrombophilia_cursor.execute(query)
         rows = self.thrombophilia_cursor.fetchall()
 
         if len(rows) == 0:
             return
-
+        
         for row in rows:
             allele = row[0]
             row_gen = {row[2][0], row[2][1]}
@@ -145,3 +148,4 @@ class CravatPostAggregator (BasePostAggregator):
     def postprocess(self):
         self.ref_homo.end()
         pass
+

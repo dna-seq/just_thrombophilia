@@ -59,9 +59,10 @@ class ThrombophiliaRefHomo:
                 allele = self.rsid_map[rsid]['allele']
                 genotype = allele+allele
 
-                query = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, rsid_conclusion, weight, " \
-                " pmids, population, populations, p_value FROM rsids, studies, " \
-                f" weight WHERE rsids.rsid = '{rsid}' AND weight.rsid = '{rsid}' AND studies.snp= '{rsid}' AND genotype = '{genotype}';"
+                query = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
+                " rsid_conclusion, weight.weight, pmids, population, populations, weight.p_value " \
+                f" FROM rsids, studies, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' " \
+                " AND weight.genotype='{gen_set}'"
 
                 self.parent.thrombophilia_cursor.execute(query)
                 row = self.parent.thrombophilia_cursor.fetchone()
