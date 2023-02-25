@@ -94,7 +94,6 @@ class CravatPostAggregator (BasePostAggregator):
 
         return color
 
-
     def annotate (self, input_data):
         rsid = str(input_data['dbsnp__rsid'])
         if rsid == '':
@@ -119,28 +118,67 @@ class CravatPostAggregator (BasePostAggregator):
         if zygot is None or zygot == "":
             zygot = "het"
 
-        query_for_pv = f"SELECT p_value FROM weight WHERE rsid = '{rsid}' AND weight.allele='{alt}' AND weight.zygosity='{zygot}'"
-    
+        query_for_pv:str = f"SELECT p_value FROM weight WHERE rsid = '{rsid}' AND weight.allele='{alt}' AND weight.zygosity='{zygot}'"
 
-        query = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
-        " rsid_conclusion, weight.weight, pmids, population, populations, weight.p_value " \
-        f" FROM rsids, studies, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' " \
-        f" AND weight.allele='{alt}' AND weight.zygosity='{zygot}'"
+        self.thrombophilia_cursor.execute(query_for_pv)
+        pvalue:tuple = self.thrombophilia_cursor.fetchone()
+        if pvalue is None:
+            substring:str = ''
+            query:str = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
+            " rsid_conclusion, weight.weight, pmids, studies.population, weight.p_value, pubmed_id" \
+            f" FROM rsids, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' " \
+            f" AND weight.allele='{alt}' AND weight.zygosity='{zygot}' "
+
+        else:
+            pv:str = ''
+            pv += pvalue[0]
+            strings = pv.split("[PMID: ")
+            string = []
+            for i in strings:
+                if i != '':
+                    string.append(i[0:8])
+            substring = 'AND (studies.pubmed_id='
+
+            if len(string) > 1:
+                substring += f"'{string[0]}'"
+                for i in range(1, len(string)):
+                    if i == (len(string)-1):
+                        substring += f"OR studies.pubmed_id='{string[i]}')"
+                        break
+                    substring += f"OR studies.pubmed_id='{string[i]}'"
+            else:
+                substring += f"'{string[0]}'"
+        
+            query:str = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
+            " rsid_conclusion, weight.weight, pmids, population, studies.populations, weight.p_value, pubmed_id" \
+            f" FROM rsids, studies, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' " \
+            f" AND weight.allele='{alt}' AND weight.zygosity='{zygot}'" + substring
 
         self.thrombophilia_cursor.execute(query)
-        rows = self.thrombophilia_cursor.fetchall()
+        rows:list[tuple] = self.thrombophilia_cursor.fetchall()
 
         if len(rows) == 0:
             return
-        
-        for row in rows:
-            allele = row[0]
-            row_gen = {row[2][0], row[2][1]}
 
-            if gen_set == row_gen:
-                task = (rsid, row[1], allele, genome, row[4], row[3], float(row[5]), row[6], row[7], row[8],
-                        row[9], self.get_color(row[5], 0.6))
-                self.longevity_cursor.execute(self.sql_insert, task)
+        study_design=''
+        if len(rows) > 1:
+            for row in rows:
+                for i in range(len(string)):
+                    if string[i] == str(row[10]):
+                        study_design += '[PMID: '+ string[i] + "] " + row[8] + "\n"
+        else:
+            study_design += rows[0][8]
+
+        row_gen = {rows[0][2][0], rows[0][2][1]}
+        if pvalue is None:
+            task = (rsid, rows[0][1], rows[0][0], genome, rows[0][4], rows[0][3], float(rows[0][5]), rows[0][6], rows[0][7], '',
+                    rows[0][8], self.get_color(rows[0][5], 0.6))
+        else:
+            task = (rsid, rows[0][1], rows[0][0], genome, rows[0][4], rows[0][3], float(row[5]), rows[0][6], rows[0][7], study_design,
+                rows[0][9], self.get_color(rows[0][5], 0.6))
+
+        if gen_set == row_gen:
+            self.longevity_cursor.execute(self.sql_insert, task)
 
         return {"col1":""}
 
