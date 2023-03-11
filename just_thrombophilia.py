@@ -8,7 +8,7 @@ import thrombophilia_ref_homo
 
 
 class CravatPostAggregator (BasePostAggregator):
-    sql_insert = """ INSERT INTO thrombophilia (
+    sql_insert:str = """ INSERT INTO thrombophilia (
                         rsid,
                         gene,
                         risk_allele,
@@ -22,23 +22,23 @@ class CravatPostAggregator (BasePostAggregator):
                         pvalue,
                         weightcolor
                     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) """
-    ref_homo = thrombophilia_ref_homo.ThrombophiliaRefHomo()
+    ref_homo:thrombophilia_ref_homo.ThrombophiliaRefHomo = thrombophilia_ref_homo.ThrombophiliaRefHomo()
 
     def check(self):
         return True
 
     def setup (self):
         self.ref_homo.init(self, self.sql_insert)
-        modules_path = str(Path(__file__).parent)
-        sql_file = modules_path + "/data/thrombophilia.sqlite"
+        modules_path:str = str(Path(__file__).parent)
+        sql_file:str = modules_path + "/data/thrombophilia.sqlite"
         if Path(sql_file).exists():
-            self.thrombophilia_conn = sqlite3.connect(sql_file)
-            self.thrombophilia_cursor = self.thrombophilia_conn.cursor()
+            self.thrombophilia_conn:sqlite3.Connection = sqlite3.connect(sql_file)
+            self.thrombophilia_cursor:sqlite3.Cursor = self.thrombophilia_conn.cursor()
 
-        self.result_path = Path(self.output_dir, self.run_name + "_longevity.sqlite")
-        self.longevity_conn = sqlite3.connect(self.result_path)
-        self.longevity_cursor = self.longevity_conn.cursor()
-        sql_create = """ CREATE TABLE IF NOT EXISTS thrombophilia (
+        self.result_path:Path = Path(self.output_dir, self.run_name + "_longevity.sqlite")
+        self.longevity_conn:sqlite3.Connection = sqlite3.connect(self.result_path)
+        self.longevity_cursor:sqlite3.Cursor = self.longevity_conn.cursor()
+        sql_create:str = """ CREATE TABLE IF NOT EXISTS thrombophilia (
             id integer NOT NULL PRIMARY KEY,
             rsid text,
             gene text,
@@ -93,9 +93,9 @@ class CravatPostAggregator (BasePostAggregator):
             color = color + "ff" + color
 
         return color
-
-    def annotate (self, input_data):
-        rsid = str(input_data['dbsnp__rsid'])
+    
+    def annotate (self, input_data:dict):
+        rsid:str = str(input_data['dbsnp__rsid'])
         if rsid == '':
             return
 
@@ -104,12 +104,12 @@ class CravatPostAggregator (BasePostAggregator):
         if not rsid.startswith('rs'):
             rsid = "rs" + rsid
 
-        alt = input_data['base__alt_base']
-        ref = input_data['base__ref_base']
+        alt:str = input_data['base__alt_base']
+        ref:str = input_data['base__ref_base']
 
-        zygot = input_data['vcfinfo__zygosity']
-        genome = alt + ref
-        gen_set = {alt, ref}
+        zygot:str = input_data['vcfinfo__zygosity']
+        genome:str = alt + ref
+        gen_set:set = {alt, ref}
         if zygot == 'hom':
             genome = alt + alt
             gen_set = {alt, alt}
@@ -119,13 +119,13 @@ class CravatPostAggregator (BasePostAggregator):
             zygot = "het"
 
         query_for_pv:str = f"SELECT p_value FROM weight WHERE rsid = '{rsid}' AND weight.allele='{alt}' AND weight.zygosity='{zygot}'"
-
         self.thrombophilia_cursor.execute(query_for_pv)
+        
         pvalue:tuple = self.thrombophilia_cursor.fetchone()
-        if pvalue is None:
+        if pvalue is None or "NoneType":
             substring:str = ''
             query:str = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
-            " rsid_conclusion, weight.weight, pmids, studies.population, weight.p_value, pubmed_id" \
+            " rsid_conclusion, weight.weight, pmids, population, weight.p_value" \
             f" FROM rsids, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' " \
             f" AND weight.allele='{alt}' AND weight.zygosity='{zygot}' "
 
@@ -133,11 +133,11 @@ class CravatPostAggregator (BasePostAggregator):
             pv:str = ''
             pv += pvalue[0]
             strings = pv.split("[PMID: ")
-            string = []
+            string:list = []
             for i in strings:
                 if i != '':
                     string.append(i[0:8])
-            substring = 'AND (studies.pubmed_id='
+            substring:str = 'AND (studies.pubmed_id='
 
             if len(string) > 1:
                 substring += f"'{string[0]}'"
@@ -147,10 +147,10 @@ class CravatPostAggregator (BasePostAggregator):
                         break
                     substring += f"OR studies.pubmed_id='{string[i]}'"
             else:
-                substring += f"'{string[0]}'"
+                substring += f"'{string[0]}')"
         
             query:str = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
-            " rsid_conclusion, weight.weight, pmids, population, studies.populations, weight.p_value, pubmed_id" \
+            " rsid_conclusion, weight.weight, pmids, population, weight.p_value, studies.populations, pubmed_id" \
             f" FROM rsids, studies, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' " \
             f" AND weight.allele='{alt}' AND weight.zygosity='{zygot}'" + substring
 
@@ -160,22 +160,22 @@ class CravatPostAggregator (BasePostAggregator):
         if len(rows) == 0:
             return
 
-        study_design=''
-        if len(rows) > 1:
-            for row in rows:
-                for i in range(len(string)):
-                    if string[i] == str(row[10]):
-                        study_design += '[PMID: '+ string[i] + "] " + row[8] + "\n"
-        else:
-            study_design += rows[0][8]
+        study_design:str = ''
 
-        row_gen = {rows[0][2][0], rows[0][2][1]}
-        if pvalue is None:
-            task = (rsid, rows[0][1], rows[0][0], genome, rows[0][4], rows[0][3], float(rows[0][5]), rows[0][6], rows[0][7], '',
+        row_gen :set= {rows[0][2][0], rows[0][2][1]}
+        if pvalue is None or "NoneType":
+            task:tuple = (rsid, rows[0][1], rows[0][0], genome, rows[0][4], rows[0][3], float(rows[0][5]), rows[0][6], rows[0][7], '',
                     rows[0][8], self.get_color(rows[0][5], 0.6))
         else:
-            task = (rsid, rows[0][1], rows[0][0], genome, rows[0][4], rows[0][3], float(row[5]), rows[0][6], rows[0][7], study_design,
-                rows[0][9], self.get_color(rows[0][5], 0.6))
+            if len(rows) > 1:
+                for row in rows:
+                    for i in range(len(string)):
+                        if string[i] == str(row[10]):
+                            study_design += '[PMID: '+ string[i] + "] " + row[8] + "\n"
+            else:
+                study_design += rows[0][9]
+            task:tuple = (rsid, rows[0][1], rows[0][0], genome, rows[0][4], rows[0][3], float(rows[0][5]), rows[0][6], rows[0][7], study_design,
+                rows[0][8], self.get_color(rows[0][5], 0.6))
 
         if gen_set == row_gen:
             self.longevity_cursor.execute(self.sql_insert, task)
