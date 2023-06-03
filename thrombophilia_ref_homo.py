@@ -59,56 +59,22 @@ class ThrombophiliaRefHomo:
                 allele:str = self.rsid_map[rsid]['allele']
                 genotype:str = allele+allele
 
-                query_for_pv:str = f"SELECT p_value FROM weight WHERE rsid = '{rsid}' AND weight.allele='{allele}' AND weight.state = 'ref' AND weight.zygosity='hom'"
-                self.parent.thrombophilia_cursor.execute(query_for_pv)
 
-                pvalue:tuple = self.parent.thrombophilia_cursor.fetchone()
-                if pvalue is None or "NoneType":
-                    substring:str = ''
-                    query:str = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
-                    " rsid_conclusion, weight.weight, pmids, population, weight.p_value" \
-                    f" FROM rsids, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' AND weight.state = 'ref' AND weight.zygosity='hom'"
-
-                else:
-                    pv:str = ''
-                    pv += pvalue[0]
-                    strings = pv.split("[PMID: ")
-                    string:list = []
-                    for i in strings:
-                        if i != '':
-                            string.append(i[0:8])
-                    substring:str = 'AND (studies.pubmed_id='
-
-                    if len(string) > 1:
-                        substring += f"'{string[0]}'"
-                        for i in range(1, len(string)):
-                            if i == (len(string)-1):
-                                substring += f"OR studies.pubmed_id='{string[i]}')"
-                                break
-                            substring += f"OR studies.pubmed_id='{string[i]}'"
-                    else:
-                        substring += f"'{string[0]}')"
+                query_for_studies:str = f"SELECT pubmed_id, populations, p_value FROM studies WHERE rsid = '{rsid}'"
+                self.parent.thrombophilia_cursor.execute(query_for_studies)
+                studies = self.parent.thrombophilia_cursor.fetchall()
                 
-                    query:str = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
-                    " rsid_conclusion, weight.weight, pmids, population, weight.p_value, studies.populations,  pubmed_id" \
-                    f" FROM rsids, studies, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' AND weight.state = 'ref'" \
-                    f" weight.zygosity='hom'" + substring
+                study_design = self.parent.merge_studies(studies)
+
+                query:str = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
+                " rsid_conclusion, weight.weight, pmids, population, weight.p_value" \
+                f" FROM rsids, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' AND weight.state = 'ref' AND weight.zygosity='hom'"
 
                 self.parent.thrombophilia_cursor.execute(query)
-                rows:list[tuple]  = self.parent.thrombophilia_cursor.fetchall()
-                study_design:str = ''
-                if len(rows) != 0:
-                    if pvalue is None or "NoneType":
-                        task:tuple = (rsid, rows[0][1], allele, genotype, rows[0][4], rows[0][3], float(rows[0][5]), rows[0][6], rows[0][7], '',
-                                rows[0][8], self.get_color(rows[0][5], 0.6))
-                    else:
-                        if len(rows) > 1:
-                            for row in rows:
-                                for i in range(len(string)):
-                                    if string[i] == str(row[10]):
-                                        study_design += '[PMID: '+ string[i] + "] " + row[8] + "\n"
-                        else:
-                            study_design += rows[0][9]
-                        task:tuple = (rsid, rows[0][1], rows[0][0], genotype, rows[0][4], rows[0][3], float(rows[0][5]), rows[0][6], rows[0][7], study_design,
-                            rows[0][8], self.get_color(rows[0][5], 0.6))
+                row:tuple  = self.parent.thrombophilia_cursor.fetchone()
+                
+                if len(row) != 0:
+                    task:tuple = (rsid, row[1], allele, genotype, row[4], row[3], float(row[5]), row[6], row[7], study_design,
+                            row[8], self.get_color(row[5], 0.6))
+                    
                     self.parent.longevity_cursor.execute(self.sql_insert, task)
