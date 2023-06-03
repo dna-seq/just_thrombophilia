@@ -133,7 +133,7 @@ class CravatPostAggregator (BasePostAggregator):
         study_design = self.merge_studies(studies)
 
         query:str = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
-        " rsid_conclusion, weight.weight, pmids, population, weight.p_value, pubmed_id" \
+        " rsid_conclusion, weight.weight, pmids, population, p_value, pubmed_id" \
         f" FROM rsids, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' " \
         f" AND weight.allele='{alt}' AND weight.zygosity='{zygot}'"
 
