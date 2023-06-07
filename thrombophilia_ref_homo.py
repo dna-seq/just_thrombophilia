@@ -63,7 +63,7 @@ class ThrombophiliaRefHomo:
                 query_for_studies:str = f"SELECT pubmed_id, populations, p_value FROM studies WHERE rsid = '{rsid}'"
                 self.parent.thrombophilia_cursor.execute(query_for_studies)
                 studies = self.parent.thrombophilia_cursor.fetchall()
-                
+
                 study_design = self.parent.merge_studies(studies)
 
                 query:str = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
@@ -72,9 +72,9 @@ class ThrombophiliaRefHomo:
 
                 self.parent.thrombophilia_cursor.execute(query)
                 row:tuple  = self.parent.thrombophilia_cursor.fetchone()
-                
+
                 if len(row) != 0:
                     task:tuple = (rsid, row[1], allele, genotype, row[4], row[3], float(row[5]), row[6], row[7], study_design,
                             row[8], self.get_color(row[5], 0.6))
-                    
+
                     self.parent.longevity_cursor.execute(self.sql_insert, task)

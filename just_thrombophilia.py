@@ -129,18 +129,18 @@ class CravatPostAggregator (BasePostAggregator):
         query_for_studies:str = f"SELECT pubmed_id, populations, p_value FROM studies WHERE rsid = '{rsid}'"
         self.thrombophilia_cursor.execute(query_for_studies)
         studies = self.thrombophilia_cursor.fetchall()
-        
+
         study_design = self.merge_studies(studies)
 
         query:str = "SELECT rsids.risk_allele, gene, genotype, genotype_specific_conclusion, " \
-        " rsid_conclusion, weight.weight, pmids, population, p_value, pubmed_id" \
+        " rsid_conclusion, weight.weight, pmids, population, weight.p_value" \
         f" FROM rsids, weight WHERE rsids.rsid ='{rsid}' AND weight.rsid = '{rsid}' " \
         f" AND weight.allele='{alt}' AND weight.zygosity='{zygot}'"
 
         self.thrombophilia_cursor.execute(query)
         row:tuple = self.thrombophilia_cursor.fetchone()
 
-        if len(row) == 0:
+        if row is None:
             return
 
         row_gen :set= {row[2][0], row[2][1]}
