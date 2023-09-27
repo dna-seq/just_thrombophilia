@@ -1,5 +1,5 @@
 title: Thrombophilia risks postaggregator
-version: 0.1.0
+version: 0.1.1
 data_version: 0.1.0
 name: just_thrombophilia
 type: postaggregator
@@ -43,3 +43,4 @@ developer:
   citation: ""
 release_note:
 0.1.0: initial version
+0.1.1: bug fix in ref_homo
