@@ -12,7 +12,7 @@ class ThrombophiliaRefHomo:
 
 
     def setup(self):
-        sql:str = "SELECT rsid, risk_allele, weight FROM weight WHERE state = 'ref' AND zygosity = 'hom'"
+        sql:str = "SELECT rsid, ref_allele, weight FROM weight WHERE state = 'ref' AND zygosity = 'hom'"
         self.parent.thrombophilia_cursor.execute(sql)
         rows:list[tuple] = self.parent.thrombophilia_cursor.fetchall()
         for row in rows:
